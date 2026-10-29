@@ -1,0 +1,43 @@
+name: Market scan
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "daily = pre-market setups, orb = opening-range breakouts"
+        type: choice
+        options: [daily, orb]
+        default: daily
+      at:
+        description: "orb only: time in New York, e.g. 10:15 (blank = now)"
+        required: false
+  schedule:
+    - cron: "0 13 * * 1-5"
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build the stock list
+        run: python3 trader-scanner/scan.py universe
+      - name: Scan
+        run: |
+          MODE="${{ github.event.inputs.mode || 'daily' }}"
+          AT="${{ github.event.inputs.at }}"
+          if [ "$MODE" = "orb" ] && [ -n "$AT" ]; then
+            python3 trader-scanner/scan.py orb --at "$AT" | tee scan.txt
+          else
+            python3 trader-scanner/scan.py "$MODE" | tee scan.txt
+          fi
+          { echo '## Scan results'; echo '```'; head -n 80 scan.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: watchlist
+          path: |
+            trader/watchlist.json
+            scan.txt
