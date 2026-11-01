@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scan log</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%88%3C/text%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#edf1f4; --panel:#ffffff; --ink:#0e1b2b; --muted:#566678; --rule:#d3dbe3;
+  --bull:#0b7a5a; --bear:#b3261e; --flat:#5b6b7c; --accent:#1f4fd8; --accent-ink:#ffffff;
+  --bar:#b8c4d0; --bar-on:#1f4fd8;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0b1117; --panel:#131b24; --ink:#e6edf3; --muted:#93a4b5; --rule:#243140;
+    --bull:#3dd6a0; --bear:#ff7a70; --flat:#8fa1b3; --accent:#7aa2ff; --accent-ink:#0b1117;
+    --bar:#2b3a4a; --bar-on:#7aa2ff; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0b1117; --panel:#131b24; --ink:#e6edf3; --muted:#93a4b5; --rule:#243140;
+  --bull:#3dd6a0; --bear:#ff7a70; --flat:#8fa1b3; --accent:#7aa2ff; --accent-ink:#0b1117;
+  --bar:#2b3a4a; --bar-on:#7aa2ff; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 "Avenir Next","Segoe UI",system-ui,sans-serif;
+  padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0)}
+button,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:1040px;margin:0 auto;padding:20px 16px 64px}
+header{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 16px;margin-bottom:14px}
+h1{font-size:22px;margin:0;letter-spacing:-.01em}
+.stamp{color:var(--muted);font-size:13px}
+.tape{display:flex;gap:6px;overflow-x:auto;padding:6px 2px 10px;margin:0 -2px;scrollbar-width:thin}
+.day{flex:0 0 auto;width:54px;border:1px solid var(--rule);background:var(--panel);border-radius:8px;
+  padding:6px 4px 6px;text-align:center;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px}
+.day small{color:var(--muted);font-size:11px;line-height:1.1}
+.day b{font-size:17px;line-height:1.1;font-variant-numeric:tabular-nums}
+.day .bar{width:100%;height:26px;display:flex;align-items:flex-end;justify-content:center}
+.day .bar i{display:block;width:12px;background:var(--bar);border-radius:2px 2px 0 0;min-height:2px}
+.day[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.day[aria-pressed="true"] .bar i{background:var(--bar-on)}
+.month{flex:0 0 auto;align-self:flex-end;color:var(--muted);font-size:12px;padding:0 4px 8px}
+.tabs{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 12px}
+.tab{border:1px solid var(--rule);background:var(--panel);border-radius:999px;padding:7px 14px;cursor:pointer}
+.tab[aria-selected="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.tab[disabled]{opacity:.45;cursor:default}
+.tab span{opacity:.75;font-variant-numeric:tabular-nums;margin-left:6px}
+.bar-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:6px}
+.bar-row input{flex:1 1 200px;min-width:0;background:var(--panel);border:1px solid var(--rule);border-radius:8px;padding:8px 10px}
+.btn{border:1px solid var(--rule);background:var(--panel);border-radius:8px;padding:8px 12px;cursor:pointer}
+.btn:hover{border-color:var(--accent)}
+.meta{color:var(--muted);font-size:13px;margin:4px 0 14px}
+.scan{background:var(--panel);border:1px solid var(--rule);border-left:4px solid var(--flat);border-radius:8px;margin:0 0 10px}
+.scan.bull{border-left-color:var(--bull)} .scan.bear{border-left-color:var(--bear)}
+.scan>summary{list-style:none;cursor:pointer;padding:12px 14px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.scan>summary::-webkit-details-marker{display:none}
+.scan h2{font-size:16px;margin:0}
+.count{font-variant-numeric:tabular-nums;font-weight:600}
+.bull .count{color:var(--bull)} .bear .count{color:var(--bear)}
+.rule{color:var(--muted);font-size:13px;flex-basis:100%}
+.tbl{overflow-x:auto;padding:0 14px 12px}
+table{border-collapse:collapse;width:100%;min-width:420px}
+th,td{text-align:right;padding:6px 8px;border-top:1px solid var(--rule);font-variant-numeric:tabular-nums;white-space:nowrap}
+th{font-weight:500;color:var(--muted);font-size:12px}
+th:first-child,td:first-child{text-align:left}
+td:last-child,th:last-child{text-align:left;white-space:normal}
+td a{color:var(--accent);font-weight:600;text-decoration:none}
+td a:hover{text-decoration:underline}
+.up{color:var(--bull)} .dn{color:var(--bear)}
+.badge{display:inline-block;border:1px solid var(--rule);border-radius:4px;padding:0 6px;margin:0 4px 2px 0;font-size:12px}
+.none{color:var(--muted);font-size:13px;padding:6px 2px}
+.empty{background:var(--panel);border:1px dashed var(--rule);border-radius:8px;padding:22px}
+.empty h2{margin:0 0 6px;font-size:17px}
+.foot{color:var(--muted);font-size:12px;margin-top:28px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Scan log</h1>
+    <span class="stamp" id="stamp"></span>
+  </header>
+  <div id="app"><p class="none">Loading scans…</p></div>
+  <p class="foot">A scan is a list of charts that match a rule, not a list of stocks to buy. Data comes from Yahoo Finance and can be delayed or wrong. Not financial advice.</p>
+</div>
+<script>
+(function () {
+  var app = document.getElementById('app'), stamp = document.getElementById('stamp');
+  var index = null, state = { date: null, cat: null, q: '' }, cache = {};
+
+  function el(tag, attrs, kids) {
+    var n = document.createElement(tag);
+    Object.keys(attrs || {}).forEach(function (k) {
+      if (k === 'text') n.textContent = attrs[k];
+      else if (k === 'on') Object.keys(attrs.on).forEach(function (e) { n.addEventListener(e, attrs.on[e]); });
+      else n.setAttribute(k, attrs[k]);
+    });
+    (kids || []).forEach(function (c) { if (c) n.appendChild(c); });
+    return n;
+  }
+  function human(n) { return n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? Math.round(n / 1e3) + 'K' : String(n); }
+  function when(iso) {
+    try { return new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }); }
+    catch (e) { return iso; }
+  }
+  function fetchJSON(path) {
+    return fetch(path, { cache: 'no-cache' }).then(function (r) {
+      if (!r.ok) throw new Error(path + ' answered ' + r.status);
+      return r.json();
+    });
+  }
+  function readHash() {
+    var m = /^#(\d{4}-\d{2}-\d{2})(?:\/([a-z]+))?$/.exec(location.hash);
+    return m ? { date: m[1], cat: m[2] || null } : {};
+  }
+  function setHash() { history.replaceState(null, '', '#' + state.date + '/' + state.cat); }
+
+  function dayTotal(day) {
+    return Object.keys(day.categories).reduce(function (s, c) { return s + day.categories[c].symbols; }, 0);
+  }
+
+  function tape() {
+    var max = Math.max.apply(null, index.days.map(dayTotal).concat([1]));
+    var row = el('div', { 'class': 'tape', role: 'group', 'aria-label': 'Days' });
+    var lastMonth = '';
+    index.days.slice().reverse().forEach(function (day) {
+      var d = new Date(day.date + 'T12:00:00'), mon = d.toLocaleString(undefined, { month: 'short' });
+      if (mon !== lastMonth) { row.appendChild(el('span', { 'class': 'month', text: mon })); lastMonth = mon; }
+      var h = Math.max(2, Math.round(26 * dayTotal(day) / max));
+      var b = el('button', {
+        'class': 'day', type: 'button', 'aria-pressed': String(day.date === state.date),
+        title: day.date + ': ' + dayTotal(day) + ' symbols',
+        on: { click: function () { state.date = day.date; state.cat = null; state.q = ''; render(); } }
+      }, [
+        el('small', { text: d.toLocaleString(undefined, { weekday: 'short' }) }),
+        el('b', { text: String(d.getDate()) }),
+        el('span', { 'class': 'bar' }, [el('i', { style: 'height:' + h + 'px' })])
+      ]);
+      row.appendChild(b);
+    });
+    return row;
+  }
+
+  function table(scan) {
+    var hasFund = scan.hits.some(function (h) { return h.sales_pct != null || h.eps_pct != null; });
+    var head = ['Symbol', 'Price', 'Change', 'Volume'];
+    var thead = el('tr', {}, head.map(function (t) { return el('th', { text: t }); }).concat([el('th', { text: 'Notes' })]));
+    var body = scan.hits.map(function (h) {
+      var notes = [];
+      (h.flags || []).forEach(function (f) { notes.push(el('span', { 'class': 'badge', text: f })); });
+      (h.notes || []).forEach(function (f) { notes.push(el('span', { 'class': 'badge', text: f })); });
+      if (h.mktcap_b != null) notes.push(el('span', { 'class': 'badge', title: h.cap_src === 'yahoo' ? 'Market cap from Yahoo' : 'Estimated: price x 30-day volume',
+        text: 'Cap ' + (h.cap_src === 'yahoo' ? '' : '~') + '$' + h.mktcap_b + 'B' }));
+      if (h.ti65 != null) notes.push(el('span', { 'class': 'badge', text: 'TI65 ' + h.ti65 }));
+      if (hasFund) {
+        if (h.sales_pct != null) notes.push(el('span', { 'class': 'badge', text: 'Sales ' + h.sales_pct + '%' }));
+        if (h.eps_pct != null) notes.push(el('span', { 'class': 'badge', text: 'EPS ' + h.eps_pct + '%' }));
+      }
+      return el('tr', {}, [
+        el('td', {}, [el('a', { href: 'https://www.tradingview.com/chart/?symbol=' + encodeURIComponent(h.symbol), target: '_blank', rel: 'noopener', text: h.symbol })]),
+        el('td', { text: h.price.toFixed(2) }),
+        el('td', { 'class': h.chg_pct == null ? '' : h.chg_pct >= 0 ? 'up' : 'dn',
+          text: h.chg_pct == null ? '–' : (h.chg_pct >= 0 ? '+' : '') + h.chg_pct.toFixed(2) + '%' }),
+        el('td', { text: h.volume == null ? '–' : human(h.volume) }),
+        el('td', {}, notes)
+      ]);
+    });
+    return el('div', { 'class': 'tbl' }, [el('table', {}, [el('thead', {}, [thead]), el('tbody', {}, body)])]);
+  }
+
+  function copy(text, btn) {
+    var done = function () { var t = btn.textContent; btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = t; }, 1200); };
+    if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, function () {});
+  }
+
+  function scans(doc) {
+    var q = state.q.trim().toUpperCase(), box = el('div');
+    var empties = [];
+    doc.scans.forEach(function (s) {
+      var shown = Object.assign({}, s, { hits: q ? s.hits.filter(function (h) { return h.symbol.indexOf(q) === 0; }) : s.hits });
+      if (s.status !== 'ok') { empties.push(s.label + ' (' + s.status + ')'); return; }
+      if (!shown.hits.length) { empties.push(s.label); return; }
+      var det = el('details', { 'class': 'scan ' + s.direction });
+      if (shown.hits.length <= 60 || q) det.setAttribute('open', '');
+      var dir = { bull: 'Bullish', bear: 'Bearish', neutral: 'Neutral' }[s.direction];
+      var sum = el('summary', {}, [
+        el('h2', { text: s.label }),
+        el('span', { 'class': 'count', text: String(shown.hits.length) }),
+        el('span', { 'class': 'stamp', text: dir }),
+        el('button', { 'class': 'btn', type: 'button', text: 'Copy symbols', on: { click: function (e) {
+          e.preventDefault(); e.stopPropagation();
+          copy(shown.hits.map(function (h) { return h.symbol; }).join(','), e.currentTarget);
+        } } }),
+        el('span', { 'class': 'rule', text: s.rule })
+      ]);
+      det.appendChild(sum); det.appendChild(table(shown)); box.appendChild(det);
+    });
+    if (!box.children.length) box.appendChild(el('p', { 'class': 'none', text: q ? 'No symbol starts with “' + state.q + '”.' : 'No matches in this category on this day.' }));
+    if (empties.length && !q) box.appendChild(el('p', { 'class': 'none', text: 'No matches or not run: ' + empties.join(', ') + '.' }));
+    return box;
+  }
+
+  function render() {
+    app.textContent = '';
+    if (!index.days.length) {
+      app.appendChild(el('div', { 'class': 'empty' }, [
+        el('h2', { text: 'No scans yet' }),
+        el('p', { text: 'Open the Actions tab in the repository, choose “Daily scans”, and press Run workflow. Results appear here a minute after it finishes.' })
+      ]));
+      return;
+    }
+    var day = index.days.filter(function (d) { return d.date === state.date; })[0] || index.days[0];
+    state.date = day.date;
+    var cats = Object.keys(index.categories);
+    if (!state.cat || !day.categories[state.cat]) {
+      state.cat = cats.filter(function (c) { return day.categories[c]; })[0];
+    }
+    setHash();
+    app.appendChild(tape());
+    var tabs = el('div', { 'class': 'tabs', role: 'tablist' }, cats.map(function (c) {
+      var info = day.categories[c];
+      var attrs = { 'class': 'tab', role: 'tab', type: 'button', 'aria-selected': String(c === state.cat),
+        on: { click: function () { state.cat = c; render(); } } };
+      if (!info) { attrs.disabled = 'disabled'; attrs.title = 'Not run on this day'; }
+      return el('button', attrs, [document.createTextNode(index.categories[c]), info ? el('span', { text: String(info.symbols) }) : null]);
+    }));
+    app.appendChild(tabs);
+    var holder = el('div', {}, [el('p', { 'class': 'none', text: 'Loading…' })]);
+    app.appendChild(holder);
+    var info = day.categories[state.cat], path = 'data/' + info.file;
+    (cache[path] ? Promise.resolve(cache[path]) : fetchJSON(path)).then(function (doc) {
+      cache[path] = doc;
+      holder.textContent = '';
+      var input = el('input', { type: 'search', placeholder: 'Filter by symbol', 'aria-label': 'Filter by symbol', value: state.q,
+        on: { input: function (e) { state.q = e.target.value; render2(); } } });
+      var all = el('button', { 'class': 'btn', type: 'button', text: 'Copy every symbol',
+        on: { click: function (e) {
+          var set = {}; doc.scans.forEach(function (s) { s.hits.forEach(function (h) { set[h.symbol] = 1; }); });
+          copy(Object.keys(set).sort().join(','), e.currentTarget);
+        } } });
+      holder.appendChild(el('div', { 'class': 'bar-row' }, [input, all]));
+      holder.appendChild(el('p', { 'class': 'meta', text:
+        'As of ' + doc.as_of + '. Run ' + when(doc.generated_at) + '. ' + doc.loaded + ' of ' + doc.candidates +
+        ' liquid symbols loaded, from a universe of ' + doc.universe + '. ' + doc.notes.slice(1).join(' ') }));
+      var list = el('div', { id: 'list' }, [scans(doc)]);
+      holder.appendChild(list);
+      function render2() { list.textContent = ''; list.appendChild(scans(doc)); }
+    }).catch(function (e) {
+      holder.textContent = '';
+      holder.appendChild(el('p', { 'class': 'none', text: 'Could not load ' + path + '. ' + e.message }));
+    });
+  }
+
+  fetchJSON('data/index.json').then(function (idx) {
+    index = idx;
+    stamp.textContent = idx.days.length ? 'Updated ' + when(idx.generated_at) + ' · ' + idx.days.length + ' days' : '';
+    var h = readHash();
+    if (h.date) { state.date = h.date; state.cat = h.cat; }
+    render();
+  }).catch(function (e) {
+    app.textContent = '';
+    app.appendChild(el('div', { 'class': 'empty' }, [
+      el('h2', { text: 'Could not load the scan index' }),
+      el('p', { text: e.message + '. If you opened this file straight from your computer, browsers block that; open the GitHub Pages address instead.' })
+    ]));
+  });
+})();
+</script>
+</body>
+</html>
