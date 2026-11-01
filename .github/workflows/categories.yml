@@ -1,0 +1,65 @@
+name: Daily scans
+
+on:
+  schedule:
+    - cron: "30 21 * * 1-5"   # end of day, Stockbee, day-trader daily: 21:30 UTC, after the US close all year
+    - cron: "30 15 * * 1-5"   # hourly + opening range: 15:30 UTC = 10:30 New York (winter) / 11:30 (summer)
+  workflow_dispatch:
+    inputs:
+      category:
+        description: Which scans to run
+        type: choice
+        options: [eod+stockbee+dt_daily, hourly+dt_orb, eod, stockbee, hourly, dt_daily, dt_orb]
+        default: eod+stockbee+dt_daily
+      fundamentals:
+        description: Stockbee scans 1-4 from Yahoo fundamentals (slower)
+        type: boolean
+        default: true
+      relaxed:
+        description: Stockbee 2-4 - let one quarter stand in for the sixth Yahoo does not give
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: scans
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pandas numpy yfinance
+      - name: Pick scans
+        id: pick
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            if [ "${{ github.event.schedule }}" = "30 15 * * 1-5" ]; then C=hourly,dt_orb; else C=eod,stockbee,dt_daily; fi
+          else
+            C="${{ inputs.category }}"; C="${C//+/,}"
+          fi
+          echo "category=$C" >> "$GITHUB_OUTPUT"
+      - name: Build stock list
+        run: python3 trader-scanner/scan.py universe
+      - name: Run scans
+        run: |
+          EXTRA=""
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.fundamentals }}" != "true" ]; then EXTRA="--no-fundamentals"; fi
+          if [ "${{ inputs.relaxed }}" = "true" ]; then EXTRA="$EXTRA --sb-relaxed"; fi
+          python3 scans/run.py --category "${{ steps.pick.outputs.category }}" $EXTRA
+      - name: Save results to the repository
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/data
+          if git diff --cached --quiet; then echo "nothing new"; exit 0; fi
+          git commit -m "Scan results ${{ steps.pick.outputs.category }} $(date -u +%F)"
+          git pull --rebase --autostash
+          git push
